@@ -21,6 +21,8 @@ namespace TechTalk.SpecFlow.Assist
         private const string ERRORMESS_SET_VALUES_DIFFERS =
             "A difference was found on row '{0}' for column '{1}' (property '{2}').\n\tInstance:\t'{3}'.\n\tTable:\t\t'{4}'";
 
+        private static List<Func<string, ParseResult>> castingConfiguration = new List<Func<string, ParseResult>>() {TryParseInt};
+
         /// <summary>
         /// Create a dynamic object from the headers and values of the <paramref name="table"/>
         /// </summary>
@@ -109,10 +111,10 @@ namespace TechTalk.SpecFlow.Assist
                     if (!instanceValue.Equals(rowValue))
                     {
                         var difference = string.Format(ERRORMESS_SET_VALUES_DIFFERS,
-                                                       i + 1, 
-                                                       currentHeader, 
-                                                       memberName, 
-                                                       instanceValue, 
+                                                       i + 1,
+                                                       currentHeader,
+                                                       memberName,
+                                                       instanceValue,
                                                        rowValue);
 
                         valueDifference.Add(difference);
@@ -226,10 +228,20 @@ namespace TechTalk.SpecFlow.Assist
 
         private static object CreateTypedValue(string valueFromTable)
         {
-            // TODO: More types here?
-            int i;
-            if (int.TryParse(valueFromTable, out i))
-                return i;
+            //object returnValue;
+            //// TODO: More types here?
+            //if (TryParseInt(valueFromTable, out returnValue))
+            //{
+            //    return returnValue;
+            //}
+
+            foreach (var typeCaster in castingConfiguration)
+            {
+                var result = typeCaster.Invoke(valueFromTable);
+                if (result.Success)
+                    return result.Value;
+            }
+
 
             double db;
             if (Double.TryParse(valueFromTable, out db))
@@ -253,6 +265,19 @@ namespace TechTalk.SpecFlow.Assist
             return valueFromTable;
         }
 
+        private static ParseResult TryParseInt(string valueFromTable)
+        {
+            object returnValue;
+
+            int i;
+            if (int.TryParse(valueFromTable, out i))
+            {
+                returnValue = i;
+                return new ParseResult(true, i);
+            }
+            return new ParseResult(false, i);
+        }
+
         private static string CreatePropertyName(string header)
         {
             var arr = header.Split(' ');
@@ -268,5 +293,20 @@ namespace TechTalk.SpecFlow.Assist
 
             return propName;
         }
+    }
+  
+
+    public class ParseResult
+    {
+
+        public ParseResult(bool success, object value)
+        {
+            Success = success;
+            Value = value;
+        }
+
+
+        public bool Success;
+        public object Value;
     }
 }
